@@ -78,7 +78,7 @@ find "$DIRECTORY" -type f -mtime +$DAYS -exec bash -c 'log_message "Deleting fil
 
 log_message "Deleting empty directories..."
 
-# Find and delete empty directories
-find "$DIRECTORY" -type d -empty -exec bash -c 'log_message "Deleting empty directory: $1"; rmdir "$1"' _ {} \;
+# Find and delete empty directories, using -prune to avoid errors
+find "$DIRECTORY" -type d -empty -exec bash -c 'log_message "Deleting empty directory: $1"; rmdir "$1"' _ {} \; -prune
 
 log_message "Cleanup completed for directory: $DIRECTORY"
