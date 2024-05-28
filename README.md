@@ -1,4 +1,3 @@
-```markdown
 # Cleanup Script
 
 ## Purpose
@@ -166,4 +165,4 @@ echo "Cron job for $SCRIPT_NAME has been successfully removed."
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-```
+
