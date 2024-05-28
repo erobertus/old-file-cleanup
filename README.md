@@ -165,4 +165,7 @@ echo "Cron job for $SCRIPT_NAME has been successfully removed."
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
+## Acknowledgments
+
+This project was assisted by ChatGPT, a language model developed by OpenAI.
 
