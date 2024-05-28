@@ -51,6 +51,7 @@ if [ ! -d "$DIRECTORY" ]; then
   exit 1
 fi
 
+# Define the log_message function
 log_message() {
   local message=$1
   if [ "$LOG_TO_SYSLOG" = true ]; then
@@ -59,6 +60,9 @@ log_message() {
     echo "$message"
   fi
 }
+
+# Export the log_message function so it can be used in subshells
+export -f log_message
 
 if [ "$LOG_TO_SYSLOG" = true ]; then
   log_message "Logging to syslog."
@@ -70,11 +74,11 @@ log_message "Starting cleanup of directory: $DIRECTORY"
 log_message "Deleting files older than $DAYS days..."
 
 # Find and delete files older than the specified number of days
-find "$DIRECTORY" -type f -mtime +$DAYS -exec sh -c 'log_message "Deleting file: $1"' _ {} \; -exec rm -f {} \;
+find "$DIRECTORY" -type f -mtime +$DAYS -exec bash -c 'log_message "Deleting file: $1"; rm -f "$1"' _ {} \;
 
 log_message "Deleting empty directories..."
 
 # Find and delete empty directories
-find "$DIRECTORY" -type d -empty -exec sh -c 'log_message "Deleting empty directory: $1"' _ {} \; -delete
+find "$DIRECTORY" -type d -empty -exec bash -c 'log_message "Deleting empty directory: $1"; rmdir "$1"' _ {} \;
 
 log_message "Cleanup completed for directory: $DIRECTORY"
