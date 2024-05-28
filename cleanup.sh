@@ -55,14 +55,14 @@ fi
 log_message() {
   local message=$1
   if [ "$LOG_TO_SYSLOG" = true ]; then
-    echo "$message" | tee >(logger -p local0.info)
-  else
-    echo "$message"
+    logger -p local0.info "$message"
   fi
+  echo "$message"
 }
 
 # Export the log_message function so it can be used in subshells
 export -f log_message
+export LOG_TO_SYSLOG
 
 if [ "$LOG_TO_SYSLOG" = true ]; then
   log_message "Logging to syslog."
@@ -78,7 +78,7 @@ find "$DIRECTORY" -type f -mtime +$DAYS -exec bash -c 'log_message "Deleting fil
 
 log_message "Deleting empty directories..."
 
-# Find and delete empty directories, using -prune to avoid errors
-find "$DIRECTORY" -type d -empty -exec bash -c 'log_message "Deleting empty directory: $1"; rmdir "$1"' _ {} \; -prune
+# Find and delete empty directories
+find "$DIRECTORY" -type d -empty -exec bash -c 'log_message "Deleting empty directory: $1"; rmdir "$1"' _ {} \;
 
 log_message "Cleanup completed for directory: $DIRECTORY"
