@@ -45,6 +45,15 @@ if ! [[ "$MINUTE" =~ ^[0-9]+$ ]] || [ "$MINUTE" -lt 0 ] || [ "$MINUTE" -gt 59 ];
   exit 1
 fi
 
+# Prompt for how many days of files to keep
+read -p "Enter number of days of files to keep [default: 180]: " RETENTION_DAYS
+RETENTION_DAYS=${RETENTION_DAYS:-180}
+
+if ! [[ "$RETENTION_DAYS" =~ ^[0-9]+$ ]] || [ "$RETENTION_DAYS" -lt 0 ]; then
+  echo "Invalid number of days: $RETENTION_DAYS"
+  exit 1
+fi
+
 # Ask for preferred logging method
 echo
 echo "Select logging method:"
@@ -54,12 +63,12 @@ read -p "Enter choice [1-2]: " LOG_CHOICE
 
 case "$LOG_CHOICE" in
   1)
-    CRON_CMD="$DESTINATION -l"
+    CRON_CMD="$DESTINATION -l -n $RETENTION_DAYS"
     CRON_SUFFIX=">/dev/null 2>&1"
     echo "Logging to syslog enabled."
     ;;
   2)
-    CRON_CMD="$DESTINATION"
+    CRON_CMD="$DESTINATION -n $RETENTION_DAYS"
     CRON_SUFFIX=">> $DEFAULT_LOGFILE 2>&1"
     echo "Logging to $DEFAULT_LOGFILE enabled."
 
