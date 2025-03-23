@@ -3,8 +3,6 @@
 SCRIPT_NAME="cleanup.sh"
 DESTINATION="/usr/local/bin/$SCRIPT_NAME"
 LOG_ROTATE_DIR="/etc/logrotate.d"
-LOGFILE=""
-USE_SYSLOG=false
 
 # Check for source script
 if [ ! -f "$SCRIPT_NAME" ]; then
@@ -46,33 +44,28 @@ if ! [[ "$MINUTE" =~ ^[0-9]+$ ]] || [ "$MINUTE" -lt 0 ] || [ "$MINUTE" -gt 59 ];
   exit 1
 fi
 
-# Prompt for logging method
+# Ask for preferred logging method
 echo
 echo "Select logging method:"
-echo "  1) Log to syslog"
-echo "  2) Log to a file"
-echo "  3) No logging"
-read -p "Enter choice [1-3]: " LOG_CHOICE
+echo "  1) Syslog (cleanup.sh will use -l, cron output redirected to /dev/null)"
+echo "  2) Terminal (cron output redirected to $DEFAULT_LOGFILE)"
+read -p "Enter choice [1-2]: " LOG_CHOICE
 
 case "$LOG_CHOICE" in
   1)
-    USE_SYSLOG=true
     CRON_CMD="$DESTINATION -l"
-    echo "Logging to syslog will be enabled."
+    CRON_SUFFIX=">/dev/null 2>&1"
+    echo "Logging to syslog enabled."
     ;;
   2)
-    read -p "Enter full path to log file [default: /var/log/cleanup.log]: " LOGFILE
-    LOGFILE=${LOGFILE:-/var/log/cleanup.log}
-
-    CRON_CMD="$DESTINATION >> \"$LOGFILE\" 2>&1"
-    echo "Logging to file: $LOGFILE"
+    CRON_CMD="$DESTINATION"
+    CRON_SUFFIX=">> $DEFAULT_LOGFILE 2>&1"
+    echo "Logging to $DEFAULT_LOGFILE enabled."
 
     # Configure logrotate
-    BASENAME=$(basename "$LOGFILE")
-    ROTATE_CONF="$LOG_ROTATE_DIR/cleanup_log_$BASENAME"
-
+    ROTATE_CONF="$LOG_ROTATE_DIR/cleanup_log"
     sudo tee "$ROTATE_CONF" > /dev/null <<EOF
-$LOGFILE {
+$DEFAULT_LOGFILE {
     daily
     rotate 14
     compress
@@ -84,20 +77,16 @@ EOF
 
     echo "Logrotate configuration created at: $ROTATE_CONF"
     ;;
-  3)
-    CRON_CMD="$DESTINATION"
-    echo "No logging will be configured."
-    ;;
   *)
     echo "Invalid selection."
     exit 1
     ;;
 esac
 
-# Build final cron line
-CRON_JOB="$MINUTE $HOUR * * * $CRON_CMD >/dev/null 2>&1"
+# Final cron job
+CRON_JOB="$MINUTE $HOUR * * * $CRON_CMD $CRON_SUFFIX"
 
-# Install the cron job (remove any previous jobs pointing to the script)
+# Install the cron job (removes old jobs pointing to the same script)
 ( crontab -l 2>/dev/null | grep -v "$DESTINATION"; echo "$CRON_JOB" ) | crontab -
 
 echo
