@@ -3,6 +3,7 @@
 SCRIPT_NAME="cleanup.sh"
 DESTINATION="/usr/local/bin/$SCRIPT_NAME"
 LOG_ROTATE_DIR="/etc/logrotate.d"
+DEFAULT_LOGFILE="/var/log/cleanup.log"
 
 # Check for source script
 if [ ! -f "$SCRIPT_NAME" ]; then
