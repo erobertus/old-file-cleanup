@@ -9,6 +9,8 @@ The `cleanup.sh` script is designed to clean up files and directories within a s
 - Deletes files older than a specified number of days.
 - Removes empty directories.
 - Supports configurable log output: syslog or terminal.
+- Can target only subdirectories that match a wildcard pattern via `-w`.
+- Can skip empty-directory deletion when `-k` is supplied.
 - Retention period is configurable via `-n` option (default: 180 days).
 - Install and uninstall scripts for easy setup and removal.
 - Automatically configures log rotation if terminal logging is selected.
@@ -18,11 +20,13 @@ The `cleanup.sh` script is designed to clean up files and directories within a s
 ### Script Usage
 
 ```bash
-cleanup.sh [-p directory] [-n days] [-l]
+cleanup.sh [-p directory] [-n days] [-w pattern] [-k] [-l]
 ```
 
 - `-p directory`: The directory to clean (default: `/var/spool/asterisk/monitor`).
 - `-n days`: Number of days to keep files (default: `180`).
+- `-w pattern`: Only clean subdirectories matching this wildcard pattern (default: `*`, which means every directory beneath `-p`).
+- `-k`: Keep empty directories instead of removing them after file cleanup.
 - `-l`: Log actions to syslog. If not specified, output is printed to terminal.
 
 ### Examples
@@ -35,6 +39,16 @@ Using default values:
 Specifying custom values:
 ```bash
 ./cleanup.sh -p /path/to/directory -n 30
+```
+
+Only clean directories that match a pattern:
+```bash
+./cleanup.sh -w 'ABC*'
+```
+
+Keep empty directories after removing files:
+```bash
+./cleanup.sh -k
 ```
 
 Logging actions to syslog:
