@@ -11,6 +11,7 @@ The `cleanup.sh` script is designed to clean up files and directories within a s
 - Supports configurable log output: syslog or terminal.
 - Can target only subdirectories that match a wildcard pattern via `-w`.
 - Can skip empty-directory deletion when `-k` is supplied.
+- Dry run modes to preview deletions (`-d` and `-D`).
 - Retention period is configurable via `-n` option (default: 180 days).
 - Install and uninstall scripts for easy setup and removal.
 - Automatically configures log rotation if terminal logging is selected.
@@ -20,7 +21,7 @@ The `cleanup.sh` script is designed to clean up files and directories within a s
 ### Script Usage
 
 ```bash
-cleanup.sh [-p directory] [-n days] [-w pattern] [-k] [-l]
+cleanup.sh [-p directory] [-n days] [-w pattern] [-k] [-l] [-d] [-D]
 ```
 
 - `-p directory`: The directory to clean (default: `/var/spool/asterisk/monitor`).
@@ -28,6 +29,8 @@ cleanup.sh [-p directory] [-n days] [-w pattern] [-k] [-l]
 - `-w pattern`: Only clean subdirectories matching this wildcard pattern (default: `*`, which means every directory beneath `-p`).
 - `-k`: Keep empty directories instead of removing them after file cleanup.
 - `-l`: Log actions to syslog. If not specified, output is printed to terminal.
+- `-d`: Dry run mode. Instead of deleting files, print how many files (and empty directories) would be removed per target directory.
+- `-D`: Detailed dry run. Implies `-d` and lists every file and empty directory that would be deleted without removing them.
 
 ### Examples
 
@@ -54,6 +57,16 @@ Keep empty directories after removing files:
 Logging actions to syslog:
 ```bash
 ./cleanup.sh -l
+```
+
+Preview how many files/empty directories would be deleted without deleting them:
+```bash
+./cleanup.sh -d
+```
+
+List every file that would be removed without deleting it:
+```bash
+./cleanup.sh -D
 ```
 
 ## Installation
