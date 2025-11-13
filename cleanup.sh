@@ -16,7 +16,7 @@ DRY_RUN_DETAILED=false
 
 # Function to display usage
 usage() {
-  echo "Usage: $0 [-p directory] [-n days] [-w pattern] [-k] [-l] [-d] [-D]"
+  echo "Usage: $0 [-p directory] [-n days] [-w pattern] [-k] [-l] [-d] [-D] [-z] [-o archive_directory]"
   echo "  -p directory: Directory to clean (default: /var/spool/asterisk/monitor)"
   echo "  -n days: Number of days to consider files old (default: 180)"
   echo "  -w pattern: Wildcard pattern for directories to include (default: *)"
@@ -24,11 +24,16 @@ usage() {
   echo "  -l: Log to syslog (if not specified, logs to terminal)"
   echo "  -d: Dry run (summarize how many files would be deleted without deleting them)"
   echo "  -D: Detailed dry run (list every file/directory that would be deleted)"
+  echo "  -z: Create a compressed tar archive of deleted files"
+  echo "  -o archive_directory: Directory to place the archive (default: top of working directory)"
   exit 1
 }
 
 # Parse options
-while getopts ":p:n:w:kldD" opt; do
+CREATE_ARCHIVE=false
+ARCHIVE_OUTPUT_DIR=""
+
+while getopts ":p:n:w:kldDzo:" opt; do
   case ${opt} in
     p)
       DIRECTORY=$OPTARG
@@ -52,6 +57,13 @@ while getopts ":p:n:w:kldD" opt; do
       DRY_RUN=true
       DRY_RUN_DETAILED=true
       ;;
+    z)
+      CREATE_ARCHIVE=true
+      ;;
+    o)
+      CREATE_ARCHIVE=true
+      ARCHIVE_OUTPUT_DIR=$OPTARG
+      ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
       usage
@@ -71,6 +83,26 @@ if [ ! -d "$DIRECTORY" ]; then
     echo "Directory $DIRECTORY does not exist."
   fi
   exit 1
+fi
+
+if [ "$CREATE_ARCHIVE" = true ]; then
+  if [ -z "$ARCHIVE_OUTPUT_DIR" ]; then
+    ARCHIVE_OUTPUT_DIR=$DIRECTORY
+  fi
+
+  if [ ! -d "$ARCHIVE_OUTPUT_DIR" ]; then
+    if [ "$LOG_TO_SYSLOG" = true ]; then
+      logger -p local0.err "Archive directory $ARCHIVE_OUTPUT_DIR does not exist."
+    else
+      echo "Archive directory $ARCHIVE_OUTPUT_DIR does not exist."
+    fi
+    exit 1
+  fi
+
+  ARCHIVE_NAME="cleanup_deleted_$(date +%Y%m%d%H%M%S)"
+  ARCHIVE_WORKING_TAR="$ARCHIVE_OUTPUT_DIR/$ARCHIVE_NAME.tar"
+  ARCHIVE_FINAL_PATH="$ARCHIVE_WORKING_TAR.gz"
+  ARCHIVE_INITIALIZED=false
 fi
 
 # Define the log_message function
@@ -121,8 +153,34 @@ for TARGET_DIR in "${DIRECTORIES_TO_CLEAN[@]}"; do
       log_message "Dry run: $FILE_COUNT files would be deleted in $TARGET_DIR."
     fi
   else
-    # Find and delete files older than the specified number of days
-    find "$TARGET_DIR" -type f -mtime +$DAYS -exec bash -c 'log_message "Deleting file: $1"; rm -f "$1"' _ {} \;
+    FILES_FOR_DIR=()
+    while IFS= read -r -d '' FILE; do
+      FILES_FOR_DIR+=("$FILE")
+    done < <(find "$TARGET_DIR" -type f -mtime +$DAYS -print0)
+
+    if [ ${#FILES_FOR_DIR[@]} -eq 0 ]; then
+      log_message "No files older than $DAYS days found in $TARGET_DIR."
+    else
+      if [ "$CREATE_ARCHIVE" = true ]; then
+        if [ "$ARCHIVE_INITIALIZED" = false ]; then
+          TAR_ARGS=(-cf "$ARCHIVE_WORKING_TAR")
+          ARCHIVE_INITIALIZED=true
+        else
+          TAR_ARGS=(-rf "$ARCHIVE_WORKING_TAR")
+        fi
+
+        if ! printf '%s\0' "${FILES_FOR_DIR[@]}" | tar "${TAR_ARGS[@]}" --absolute-names --null -T -; then
+          log_message "Failed to add files from $TARGET_DIR to archive $ARCHIVE_WORKING_TAR."
+        else
+          log_message "Added ${#FILES_FOR_DIR[@]} files from $TARGET_DIR to archive."
+        fi
+      fi
+
+      for FILE in "${FILES_FOR_DIR[@]}"; do
+        log_message "Deleting file: $FILE"
+        rm -f "$FILE"
+      done
+    fi
   fi
 
   if [ "$SKIP_EMPTY_DELETION" = false ]; then
@@ -149,5 +207,15 @@ for TARGET_DIR in "${DIRECTORIES_TO_CLEAN[@]}"; do
     log_message "Skipping deletion of empty directories in $TARGET_DIR."
   fi
 done
+
+if [ "$CREATE_ARCHIVE" = true ] && [ "$ARCHIVE_INITIALIZED" = true ]; then
+  if gzip -f "$ARCHIVE_WORKING_TAR"; then
+    log_message "Created archive of deleted files at $ARCHIVE_FINAL_PATH."
+  else
+    log_message "Failed to compress archive $ARCHIVE_WORKING_TAR."
+  fi
+elif [ "$CREATE_ARCHIVE" = true ]; then
+  log_message "Archive requested but no files were deleted, so no archive was created."
+fi
 
 log_message "Cleanup completed for directory: $DIRECTORY"
